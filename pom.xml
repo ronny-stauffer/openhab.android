@@ -71,6 +71,7 @@
 					<resourceDirectory>${project.basedir}/res</resourceDirectory>
 					<sdk>
 						<platform>15</platform>
+						<path>C:\progs\android_sdk\22.6.2</path>
 					</sdk>
 					<undeployBeforeDeploy>true</undeployBeforeDeploy>
 					<zipalign>
