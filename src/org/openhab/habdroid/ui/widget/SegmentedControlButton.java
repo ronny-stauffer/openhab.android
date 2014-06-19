@@ -20,6 +20,7 @@ package org.openhab.habdroid.ui.widget;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.Rect;
@@ -30,6 +31,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.RadioButton;
+
 import org.openhab.habdroid.R;
 
 /** @author benjamin ferrari */
@@ -87,7 +89,8 @@ public class SegmentedControlButton extends RadioButton {
         if (attrs != null) {
             TypedArray attributes = this.getContext().obtainStyledAttributes(attrs, R.styleable.SegmentedControlButton);
             if (backgroundSelected == null) {
-                Drawable d = attributes.getDrawable(R.styleable.SegmentedControlButton_backgroundSelected);
+            	Drawable d = null;
+//                Drawable d = attributes.getDrawable(R.styleable.SegmentedControlButton_backgroundSelected);
                 backgroundSelected = d == null ? getBackground() : d;
             }
 
@@ -108,6 +111,7 @@ public class SegmentedControlButton extends RadioButton {
             textPaint.setTextAlign(Paint.Align.CENTER);
             linePaint = new Paint();
             linePaint.setColor(this.getLineColor());
+//            linePaint.setColor(Color.WHITE);
             linePaint.setStyle(Style.FILL);
         }
 
@@ -147,31 +151,34 @@ public class SegmentedControlButton extends RadioButton {
 
     @Override
     public void onDraw(Canvas canvas) {
-
         String text = this.getText().toString();
-        int lineHeight;
+//        int lineHeight;
         if (isChecked()) {
-            lineHeight = mLineHeightSelected;
-            textPaint.setColor(mTextColorSelected);
+//            lineHeight = mLineHeightSelected;
+//            textPaint.setColor(mTextColorSelected);
+            textPaint.setColor(Color.WHITE);
         } else {
-            lineHeight = this.getLineHeightUnselected();
-            textPaint.setColor(mTextColorUnselected);
+//            lineHeight = this.getLineHeightUnselected();
+//            textPaint.setColor(mTextColorUnselected);
+        	textPaint.setColor(Color.WHITE);
         }
 
-        int textHeightPos = this.getHeight() - mLineHeightSelected - mTextDistanceFromLine;
+        int textHeightPos = this.getHeight() / 2;
+//        int textHeightPos = this.getHeight() - mLineHeightSelected - mTextDistanceFromLine;
 
         float x = mX;
 
-        Drawable background = getBackground();
+//        Drawable background = getBackground();
+        Drawable background = getResources().getDrawable(R.drawable.custom_thumb_big);
         background.setBounds(0, 0, getWidth(), getHeight());
         background.draw(canvas);
 
         canvas.drawText(text, x, textHeightPos, textPaint);
-
-        if (lineHeight > 0) {
-            Rect rect = new Rect(0, this.getHeight() - lineHeight, getWidth(), this.getHeight());
-            canvas.drawRect(rect, linePaint);
-        }
+        
+//        if (lineHeight > 0) {
+//            Rect rect = new Rect(0, this.getHeight() - lineHeight, getWidth(), this.getHeight());
+//            canvas.drawRect(rect, linePaint);
+//        }
 
     }
 

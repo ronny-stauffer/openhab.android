@@ -23,6 +23,7 @@ import java.util.Random;
 
 import org.apache.http.entity.StringEntity;
 import org.openhab.habdroid.R;
+import org.openhab.habdroid.R.drawable;
 import org.openhab.habdroid.model.OpenHABItem;
 import org.openhab.habdroid.model.OpenHABWidget;
 import org.openhab.habdroid.model.OpenHABWidgetMapping;
@@ -31,6 +32,7 @@ import org.openhab.habdroid.ui.widget.OnColorChangedListener;
 import org.openhab.habdroid.util.MjpegStreamer;
 import org.openhab.habdroid.util.MyAsyncHttpClient;
 import org.openhab.habdroid.util.MySmartImageView;
+
 import android.content.Context;
 import android.net.Uri;
 import android.text.TextUtils;
@@ -60,6 +62,7 @@ import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.VideoView;
+
 import org.openhab.habdroid.ui.widget.SegmentedControlButton;
 
 import com.crittercism.app.Crittercism;

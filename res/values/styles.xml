@@ -1,3 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+    <style name="switchTextAppearance" parent="@android:style/TextAppearance.Holo.Small">
+    	<item name="android:textSize">40sp</item>
+    	<item name="android:textColor">#FFFFFF</item>
+	</style>
 </resources>
