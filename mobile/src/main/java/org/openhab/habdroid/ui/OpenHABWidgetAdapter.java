@@ -696,8 +696,12 @@ public class OpenHABWidgetAdapter extends ArrayAdapter<OpenHABWidget> {
     			return TYPE_SECTIONSWITCH;
     		} else if (openHABWidget.getItem() != null) {
     			if (openHABWidget.getItem().getType()!= null) {
-	    			if (openHABWidget.getItem().getType().equals("RollershutterItem"))
-	    				return TYPE_ROLLERSHUTTER;
+                    if (openHABWidget.getItem().getType().equals("GroupItem") && openHABWidget.getIcon().startsWith("rollershutter"))
+                        return TYPE_ROLLERSHUTTER;
+                    else if (openHABWidget.getItem().getType().equals("JalousieItem"))
+                        return TYPE_ROLLERSHUTTER;
+                    else if (openHABWidget.getItem().getType().equals("RollershutterItem"))
+                        return TYPE_ROLLERSHUTTER;
 	    			else
 	    				return TYPE_SWITCH;
     			} else
