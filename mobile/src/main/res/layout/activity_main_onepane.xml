@@ -1,5 +1,6 @@
 <android.support.v4.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:svgimageview="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -15,4 +16,33 @@
         android:divider="@android:color/transparent"
         android:dividerHeight="0dp"
         android:background="#111"/>
+    <!-- <FrameLayout android:id="@+id/top_view" -->
+    <RelativeLayout android:id="@+id/top_view_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:clickable="true"> <!-- Prevent that clicks go "through" this drawer to the main content -->
+    <!--
+    <ImageView android:id="@+id/top_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+    -->
+    <!--
+    <Button
+        android:layout_width="100px"
+        android:layout_height="100px"
+        android:layout_marginTop="100px"
+        android:layout_marginLeft="100px"
+        android:text="A"/>
+        <!- android:background="@drawable/top_view_button_background" ->
+     -->
+    </RelativeLayout>
+    <!--
+    <com.caverock.androidsvg.SVGImageView
+        android:id="@+id/top_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        svgimageview:svg="top_view.svg"/>
+    -->
 </android.support.v4.widget.DrawerLayout>

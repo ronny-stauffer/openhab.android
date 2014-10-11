@@ -14,6 +14,7 @@
 package org.openhab.habdroid.ui;
 
 import android.Manifest;
+import android.app.ActionBar;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.app.ProgressDialog;
@@ -44,7 +45,9 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.AdapterView;
+import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.crittercism.app.Crittercism;
@@ -60,9 +63,17 @@ import org.openhab.habdroid.core.DocumentHttpResponseHandler;
 import org.openhab.habdroid.core.NotificationDeletedBroadcastReceiver;
 import org.openhab.habdroid.core.OpenHABTracker;
 import org.openhab.habdroid.core.OpenHABTrackerReceiver;
+import org.openhab.habdroid.model.OpenHABItem;
 import org.openhab.habdroid.model.OpenHABLinkedPage;
 import org.openhab.habdroid.model.OpenHABSitemap;
+import org.openhab.habdroid.model.OpenHABWidget;
+import org.openhab.habdroid.model.topview.TopViewButtonDescriptor;
+import org.openhab.habdroid.model.topview.TopViewButtonToItemAdapter;
+import org.openhab.habdroid.model.topview.TopViewSVGToButtonParser;
+import org.openhab.habdroid.model.topview.common.Communicator;
 import org.openhab.habdroid.ui.drawer.OpenHABDrawerAdapter;
+import org.openhab.habdroid.ui.topview.SVGImageViewFactory;
+import org.openhab.habdroid.ui.topview.TopViewButtonFactory;
 import org.openhab.habdroid.util.Constants;
 import org.openhab.habdroid.util.MyAsyncHttpClient;
 import org.openhab.habdroid.util.Util;
@@ -72,7 +83,9 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import de.duenndns.ssl.MTMDecision;
 import de.duenndns.ssl.MemorizingResponder;
@@ -133,9 +146,12 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
     // Google Cloud Messaging
     private GoogleCloudMessaging mGcm;
     private OpenHABDrawerAdapter mDrawerAdapter;
-    private String[] mDrawerTitles = {"First floor", "Seconf floor", "Cellar", "Garage"};
+    private String[] mDrawerTitles = {"First floor", "Second floor", "Cellar", "Garage"};
     private ListView mDrawerList;
     private List<OpenHABSitemap> mSitemapList;
+
+    private CharSequence previousActionBarTitle;
+    private boolean buttonState;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -181,7 +197,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         gcmRegisterBackground();
         // Enable app icon in action bar work as 'home'
 //        this.getActionBar().setHomeButtonEnabled(true);
-        pager = (OpenHABViewPager)findViewById(R.id.pager);
+        pager = (OpenHABViewPager) findViewById(R.id.pager);
         pager.setScrollDurationFactor(2.5);
         pager.setOffscreenPageLimit(1);
         pagerAdapter = new OpenHABFragmentPagerAdapter(getSupportFragmentManager());
@@ -200,9 +216,24 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                 R.string.app_name, R.string.app_name) {
             public void onDrawerClosed(View view) {
                 Log.d(TAG, "onDrawerClosed");
+
+                if (view.getId() == R.id.top_view_layout) {
+                    Log.d(TAG, "Top view closed.");
+
+                    //getActionBar().setTitle(previousActionBarTitle);
+                }
             }
+
             public void onDrawerOpened(View drawerView) {
                 Log.d(TAG, "onDrawerOpened");
+
+                if (drawerView.getId() == R.id.top_view_layout) {
+                    Log.d(TAG, "Top view openend.");
+
+                    ActionBar actionBar = getActionBar();
+                    previousActionBarTitle = actionBar.getTitle();
+                    actionBar.setTitle("Top View");
+                }
             }
         };
         mDrawerLayout.setDrawerListener(mDrawerToggle);
@@ -227,6 +258,92 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
             }
         });
 //        mDrawerList.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, mDrawerTitles));
+
+//        // Get the root of the view (sub-)tree we are going to modify
+//        RelativeLayout topViewLayout = (RelativeLayout) findViewById(R.id.top_view_layout);
+//
+//        // TEST
+////        // Load SVG into the image view
+////        final ImageView topViewImageView = (ImageView) findViewById(R.id.top_view);
+////        int topViewWidth = topViewImageView.getWidth(); // Results to 0 because view isn't "layouted" yet
+////        int topViewHeight = topViewImageView.getHeight(); // "
+////        topViewImageView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+////            @Override
+////            public void onLayoutChange(View view, int i, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
+////                // Now the image view knows its actual size
+////                int viewWidth = view.getWidth();
+////                int viewHeight = view.getHeight();
+////
+////                // Create bitmap of that size and
+////                Bitmap bitmap = Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
+////                Canvas canvas = new Canvas(bitmap);
+////
+////                // Clear background to white
+////                canvas.drawRGB(255, 255, 255);
+////
+//////                Paint paint = new Paint();
+//////                paint.setColor(Color.RED);
+//////                canvas.drawRect(new Rect(0, 0, 100, 100), paint);
+////
+////                try {
+////                    SVG svg = SVG.getFromAsset(getAssets(), "top_view.svg");
+////                    float svgWidth = svg.getDocumentWidth();
+////                    float svgHeight = svg.getDocumentHeight();
+////
+////                    svg.renderToCanvas(canvas); // Does not scale the SVG image!
+////                } catch (Exception e) {
+////                    throw new RuntimeException("MARKER 111");
+////                }
+////
+////                topViewImageView.setImageBitmap(bitmap);
+////            }
+////        });
+//        // END TEST
+//
+//        ImageView topViewImageView = new SVGImageViewFactory(this).createFromAsset(getAssets(), "top_view.svg");
+//        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT); // Mandatory parameters
+//        topViewLayout.addView(topViewImageView, layoutParams);
+//
+//        // Alternative approach: Using SVGImageView
+////        SVGImageView svgImageView = new SVGImageView(this);
+////        svgImageView.setImageAsset("top_view.svg");
+////        topViewLayout.addView(svgImageView,
+////                new FrameLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+//
+//        // TEST
+////        // Add a button programmatically
+////        final Button button = new Button(this);
+////        //button.setText("B"); // Set text
+////        button.setBackgroundDrawable(getResources().getDrawable(R.drawable.top_view_button_background)); // Set background
+////        button.getBackground().setAlpha(0); // Set background to transparent
+////        //button.getBackground().setAlpha(10); // Set background to nearly transparent
+////        button.setOnClickListener(new View.OnClickListener() {
+////            @Override
+////            public void onClick(View view) {
+////                // Switch the button state
+////                buttonState = !buttonState;
+////
+////                // "Highlight" button if it is activated
+////                button.getBackground().setAlpha(buttonState ? 255 : 0);
+////
+//////                new AlertDialog.Builder(context)
+//////                .setTitle("Event")
+//////                .setMessage("B was clicked!")
+//////                .create().show();
+////            }
+////        });
+////        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(100, 100); // Mandatory parameters
+////        layoutParams.setMargins(200, 200, 0, 0); // Determines position
+////        topViewLayout.addView(button, layoutParams);
+//        // END TEST
+//
+//        List<TopViewButtonDescriptor> buttonDescriptors = new TopViewSVGToButtonParser().parseAsset(getAssets(), "top_view.svg");
+//        TopViewButtonFactory buttonFactory = new TopViewButtonFactory(this);
+//        for (TopViewButtonDescriptor buttonDescriptor : buttonDescriptors) {
+//            Button button2 = buttonFactory.create(buttonDescriptor);
+//            topViewLayout.addView(button2);
+//        }
+
         getActionBar().setDisplayHomeAsUpEnabled(true);
         getActionBar().setHomeButtonEnabled(true);
         if (getIntent() != null) {
@@ -238,15 +355,13 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                     if (getIntent().getDataString() != null) {
 
 
-
-
                         Log.d(TAG, "NFC data = " + getIntent().getDataString());
                         mNfcData = getIntent().getDataString();
                     }
                 } else if (getIntent().getAction().equals("org.openhab.notification.selected")) {
                     onNotificationSelected(getIntent());
                 }
-            }else if(getIntent().getExtras() != null){
+            } else if (getIntent().getExtras() != null) {
                 Log.d(TAG, "This is Voice action");
 
                 List<String> results = getIntent().getExtras().getStringArrayList("android.speech.extra.RESULTS");
@@ -283,7 +398,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         }
         pagerAdapter.setColumnsNumber(getResources().getInteger(R.integer.pager_columns));
         FragmentManager fm = getSupportFragmentManager();
-        stateFragment = (StateRetainFragment)fm.findFragmentByTag("stateFragment");
+        stateFragment = (StateRetainFragment) fm.findFragmentByTag("stateFragment");
         if (stateFragment == null) {
             stateFragment = new StateRetainFragment();
             fm.beginTransaction().add(stateFragment, "stateFragment").commit();
@@ -309,15 +424,15 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
             // If not, then open this page as new one
         } else {
             pagerAdapter.openPage(mPendingNfcPage);
-            pager.setCurrentItem(pagerAdapter.getCount()-1);
+            pager.setCurrentItem(pagerAdapter.getCount() - 1);
         }
         mPendingNfcPage = null;
     }
 
     public void onOpenHABTracked(String baseUrl, String message) {
         if (message != null)
-        Toast.makeText(getApplicationContext(), message,
-                Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), message,
+                    Toast.LENGTH_LONG).show();
         openHABBaseUrl = baseUrl;
         mDrawerAdapter.setOpenHABBaseUrl(openHABBaseUrl);
         pagerAdapter.setOpenHABBaseUrl(openHABBaseUrl);
@@ -356,8 +471,8 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
      * Get sitemaps from openHAB, if user already configured preffered sitemap
      * just open it. If no preffered sitemap is configured - let user select one.
      *
-     * @param  baseUrl  an absolute base URL of openHAB to open
-     * @return      void
+     * @param baseUrl an absolute base URL of openHAB to open
+     * @return void
      */
 
     private void selectSitemap(final String baseUrl, final boolean forceSelect) {
@@ -422,6 +537,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                     }
                 }
             }
+
             @Override
             public void onFailure(Throwable error, String content) {
                 stopProgressIndicator();
@@ -460,8 +576,9 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
 
     private void showSitemapSelectionDialog(final List<OpenHABSitemap> sitemapList) {
         Log.d(TAG, "Opening sitemap selection dialog");
-        final List<String> sitemapNameList = new ArrayList<String>();;
-        for (int i=0; i<sitemapList.size(); i++) {
+        final List<String> sitemapNameList = new ArrayList<String>();
+        ;
+        for (int i = 0; i < sitemapList.size(); i++) {
             sitemapNameList.add(sitemapList.get(i).getName());
         }
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(OpenHABMainActivity.this);
@@ -490,6 +607,131 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         pagerAdapter.clearFragmentList();
         pagerAdapter.openPage(sitemapRootUrl);
         pager.setCurrentItem(0);
+
+        if (sitemapUrl.equals("http://10.20.34.66:8080/rest/sitemaps/test/test")) {
+//            String sitemapUrl1 = "http://10.20.34.66:8080/rest/sitemaps/test/test";
+            String sitemapUrl1 = "http://10.20.34.66:8080/rest/sitemaps/test_top_view/test_top_view";
+
+            // Get the root of the view (sub-)tree we are going to modify
+            RelativeLayout topViewLayout = (RelativeLayout) findViewById(R.id.top_view_layout);
+
+            // TEST
+//        // Load SVG into the image view
+//        final ImageView topViewImageView = (ImageView) findViewById(R.id.top_view);
+//        int topViewWidth = topViewImageView.getWidth(); // Results to 0 because view isn't "layouted" yet
+//        int topViewHeight = topViewImageView.getHeight(); // "
+//        topViewImageView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+//            @Override
+//            public void onLayoutChange(View view, int i, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
+//                // Now the image view knows its actual size
+//                int viewWidth = view.getWidth();
+//                int viewHeight = view.getHeight();
+//
+//                // Create bitmap of that size and
+//                Bitmap bitmap = Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
+//                Canvas canvas = new Canvas(bitmap);
+//
+//                // Clear background to white
+//                canvas.drawRGB(255, 255, 255);
+//
+////                Paint paint = new Paint();
+////                paint.setColor(Color.RED);
+////                canvas.drawRect(new Rect(0, 0, 100, 100), paint);
+//
+//                try {
+//                    SVG svg = SVG.getFromAsset(getAssets(), "top_view.svg");
+//                    float svgWidth = svg.getDocumentWidth();
+//                    float svgHeight = svg.getDocumentHeight();
+//
+//                    svg.renderToCanvas(canvas); // Does not scale the SVG image!
+//                } catch (Exception e) {
+//                    throw new RuntimeException("MARKER 111");
+//                }
+//
+//                topViewImageView.setImageBitmap(bitmap);
+//            }
+//        });
+            // END TEST
+
+            ImageView topViewImageView = new SVGImageViewFactory(this).createFromAsset(getAssets(), "top_view.svg");
+            RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT); // Mandatory parameters
+            topViewLayout.addView(topViewImageView, layoutParams);
+
+            // Alternative approach: Using SVGImageView
+//        SVGImageView svgImageView = new SVGImageView(this);
+//        svgImageView.setImageAsset("top_view.svg");
+//        topViewLayout.addView(svgImageView,
+//                new FrameLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+
+            // TEST
+//        // Add a button programmatically
+//        final Button button = new Button(this);
+//        //button.setText("B"); // Set text
+//        button.setBackgroundDrawable(getResources().getDrawable(R.drawable.top_view_button_background)); // Set background
+//        button.getBackground().setAlpha(0); // Set background to transparent
+//        //button.getBackground().setAlpha(10); // Set background to nearly transparent
+//        button.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                // Switch the button state
+//                buttonState = !buttonState;
+//
+//                // "Highlight" button if it is activated
+//                button.getBackground().setAlpha(buttonState ? 255 : 0);
+//
+////                new AlertDialog.Builder(context)
+////                .setTitle("Event")
+////                .setMessage("B was clicked!")
+////                .create().show();
+//            }
+//        });
+//        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(100, 100); // Mandatory parameters
+//        layoutParams.setMargins(200, 200, 0, 0); // Determines position
+//        topViewLayout.addView(button, layoutParams);
+            // END TEST
+
+            final Communicator communicator = new Communicator(this);
+
+            final Map<String, TopViewButtonDescriptor> buttonDescriptors = new TopViewSVGToButtonParser().parseAsset(getAssets(), "top_view.svg");
+            final Map<String, TopViewButtonToItemAdapter> buttonToItemAdapters = new HashMap<String, TopViewButtonToItemAdapter>();
+            TopViewButtonFactory buttonFactory = new TopViewButtonFactory(this);
+            for (TopViewButtonDescriptor buttonDescriptor : buttonDescriptors.values()) {
+                /* Button button */ TopViewButtonToItemAdapter buttonToItemAdapter = buttonFactory.create(buttonDescriptor, new TopViewButtonToItemAdapter.SendCommandHandler() {
+                    @Override
+                    public void sendCommand(OpenHABItem item, String command) {
+                        // Called from the UI thread
+
+                        communicator.sendCommand(item, command);
+                    }
+                });
+                buttonToItemAdapters.put(buttonToItemAdapter.getButtonDescriptor().getItem(), buttonToItemAdapter);
+                topViewLayout.addView(/* button */ buttonToItemAdapter.getButton());
+            }
+
+            communicator.loadPage(sitemapUrl1, new Communicator.StateUpdateHandler() {
+                @Override
+                public void stateUpdate(Iterable<OpenHABWidget> widgets) {
+                    // Called from a background thread
+
+                    for (OpenHABWidget widget : widgets) {
+                        OpenHABItem item = widget.getItem();
+                        String itemName = item.getName();
+
+                        if (buttonToItemAdapters.containsKey(itemName)) {
+                            TopViewButtonToItemAdapter buttonToItemAdapter = buttonToItemAdapters.get(itemName);
+
+                            buttonToItemAdapter.updateItem(item);
+                        }
+                    }
+                }
+            });
+        }
+        if (sitemapUrl.equals("http://10.20.34.66:18080/rest/sitemaps/test/test")) {
+            String sitemapUrl2 = "http://10.20.34.66:18080/rest/sitemaps/test_top_view/testTopView";
+        }
+        if (sitemapUrl.equals("https://my.openhab.org/rest/sitemaps/test/test")) {
+            String sitemapUrl3 = "https://my.openhab.org/rest/sitemaps/test_top_view/testTopView";
+        }
     }
 
     @Override
@@ -531,7 +773,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                 Log.d(TAG, "Restarting");
                 // Get launch intent for application
                 Intent restartIntent = getBaseContext().getPackageManager()
-                        .getLaunchIntentForPackage( getBaseContext().getPackageName() );
+                        .getLaunchIntentForPackage(getBaseContext().getPackageName());
                 restartIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                 // Finish current activity
                 finish();
@@ -576,7 +818,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                 Log.d(TAG, "Restarting after settings");
                 // Get launch intent for application
                 Intent restartIntent = getBaseContext().getPackageManager()
-                        .getLaunchIntentForPackage( getBaseContext().getPackageName() );
+                        .getLaunchIntentForPackage(getBaseContext().getPackageName());
                 restartIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 // Finish current activity
                 finish();
@@ -589,7 +831,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
             case VOICE_RECOGNITION_REQUEST_CODE:
                 Log.d(TAG, "Got back from Voice recognition");
                 setProgressBarIndeterminateVisibility(false);
-                if(resultCode == RESULT_OK) {
+                if (resultCode == RESULT_OK) {
                     ArrayList<String> textMatchList = data
                             .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
                     if (!textMatchList.isEmpty()) {
@@ -701,6 +943,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
 
     /**
      * This method processes new intents generated by NFC subsystem
+     *
      * @param nfcData - a data which NFC subsystem got from the NFC tag
      */
     public void onNfcTag(String nfcData) {
@@ -738,6 +981,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                 public void onSuccess(String response) {
                     Log.d(TAG, "Command was sent successfully");
                 }
+
                 @Override
                 public void onFailure(Throwable error, String errorResponse) {
                     Log.e(TAG, "Got command error " + error.getMessage());
@@ -755,7 +999,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         Log.i(TAG, "Got widget link = " + linkedPage.getLink());
         Log.i(TAG, String.format("Link came from fragment on position %d", source.getPosition()));
         pagerAdapter.openPage(linkedPage.getLink(), source.getPosition() + 1);
-        pager.setCurrentItem(pagerAdapter.getCount()-1);
+        pager.setCurrentItem(pagerAdapter.getCount() - 1);
         setTitle(linkedPage.getTitle());
     }
 
@@ -938,6 +1182,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                         public void onSuccess(String response) {
                             Log.d(TAG, "GCM reg id success");
                         }
+
                         @Override
                         public void onFailure(Throwable error, String errorResponse) {
                             Log.e(TAG, "GCM reg id error: " + error.getMessage());
@@ -951,9 +1196,10 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                 }
                 return regId;
             }
+
             @Override
             protected void onPostExecute(String regId) {
             }
-        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,null, null, null);
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, null, null, null);
     }
 }

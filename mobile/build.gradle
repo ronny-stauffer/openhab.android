@@ -38,4 +38,6 @@ dependencies {
     compile 'com.android.support:support-v4:20.0.0'
     compile 'com.loopj:android-async-http:1.4.2-openhab'
     compile 'com.loopj:android-smart-image-view:1.0.0'
+    compile 'com.caverock:androidsvg:1.2.1'
+
 }
