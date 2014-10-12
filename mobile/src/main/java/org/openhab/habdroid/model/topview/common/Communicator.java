@@ -81,6 +81,12 @@ public class Communicator {
         //TODO Implement
     }
 
+    public void stop() {
+        MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
+
+        mAsyncHttpClient.cancelRequests(context, this, /* mayInterruptIfRunning: */ false);
+    }
+
     private void loadPage(/* String pageUrl, */ final boolean notInitialRequest) {
 //        Log.i(TAG, " showPage for " + pageUrl + " notInitialRequest = " + notInitialRequest);
 
@@ -123,7 +129,7 @@ public class Communicator {
 //                    Log.d(TAG, "Response: " + document.toString());
 //                    if (!notInitialRequest)
 //                        stopProgressIndicator();
-                    processContent(document /*, notInitialRequest */);
+                    processResponse(document /*, notInitialRequest */);
                 } else {
                     Log.e(TAG, "Got a empty (<null>) response.");
                     loadPage(/* displayPageUrl, */ true);
@@ -169,7 +175,7 @@ public class Communicator {
      * @param document XML Document
      * @return void
      */
-    private void processContent(Document document /* , boolean notInitialRequest */) {
+    private void processResponse(Document document /* , boolean notInitialRequest */) {
         // As we change the page we need to stop all videos on current page
         // before going to the new page. This is quite dirty, but is the only
         // way to do that...
@@ -177,6 +183,8 @@ public class Communicator {
 //        openHABWidgetAdapter.stopImageRefresh();
         Node rootNode = document.getFirstChild();
         openHABWidgetDataSource.setSourceNode(rootNode);
+
+        String title = openHABWidgetDataSource.getTitle();
 
 //        widgetList.clear();
         List<OpenHABWidget> widgets = new ArrayList<OpenHABWidget>();
@@ -194,6 +202,8 @@ public class Communicator {
             widgets.add(widget);
             items.add(item);
         }
+
+        //TODO Call page update handler if there are registered and propagate title and widgets
 
         stateUpdateHandler.stateUpdate(items);
 

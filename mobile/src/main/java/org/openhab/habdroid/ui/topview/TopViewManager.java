@@ -1,6 +1,7 @@
 package org.openhab.habdroid.ui.topview;
 
 import android.app.Activity;
+import android.view.ViewParent;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
@@ -23,12 +24,18 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by staufferr on 12.10.2014.
  */
 public class TopViewManager {
     private final Activity activity;
+
+    // Per top view
+    private RelativeLayout layout;
+    // Per top view END
 
     private final Communicator communicator;
 
@@ -41,7 +48,7 @@ public class TopViewManager {
         this.communicator = new Communicator(activity);
     }
 
-    public void loadForSitemap(final String sitemapUrl, final RelativeLayout layout) {
+    public /* TODO TopViewDescriptor (containing the title, ...) */ void createForSitemap(final String sitemapUrl, final RelativeLayout layout) {
         if (StringUtil.isStringUndefinedOrEmpty(sitemapUrl)) {
             throw new IllegalArgumentException("sitemapUrl must not be undefined or empty!");
         }
@@ -52,13 +59,32 @@ public class TopViewManager {
 //        long threadId = Thread.currentThread().getId();
 //        String threadName = Thread.currentThread().getName();
 
-        if (!sitemapUrl.equals("http://10.20.34.66:8080/rest/sitemaps/test/test")) {
-            return;
+//        if (!sitemapUrl.equals("http://10.20.34.66:8080/rest/sitemaps/test/test")) {
+          //                                                            ^^^^ sitemap name
+          //                                                                 ^^^^ page id
+//            return;
+//        }
+
+        // Determine top view sitemap URL
+        Pattern pattern = Pattern.compile("^(.*)/rest/sitemaps/([a-zA-Z_0-9]+)/");
+        Matcher matcher = pattern.matcher(sitemapUrl);
+        if (!matcher.find()) {
+            throw new IllegalArgumentException("sitemapUrl is not valid!");
         }
 
-        final String modelSitemapUrl = "http://10.20.34.66:8080/rest/sitemaps/test_top_view/test_top_view";
-        final String svgUrl = "http://10.20.34.66:8080/top_views/test_top_view.svg";
+        String baseUrl = matcher.group(1);
+        String sitemapName = matcher.group(2);
 
+        String topViewName = sitemapName + "_top_view";
+
+//        final String modelSitemapUrl = "http://10.20.34.66:8080/rest/sitemaps/test_top_view/test_top_view";
+        final String modelSitemapUrl = baseUrl + "/rest/sitemaps/" + topViewName + "/" + topViewName;
+//        final String svgUrl = "http://10.20.34.66:8080/top_views/test_top_view.svg";
+        final String svgUrl = baseUrl + "/top_views/" + topViewName + ".svg";
+
+        this.layout = layout;
+
+        // Load view and model
         // The "glue" (mediator) between the view and the model
         final Map<String, TopViewButtonToItemAdapter> buttonToItemAdapters = new HashMap<String, TopViewButtonToItemAdapter>();
 
@@ -108,12 +134,18 @@ public class TopViewManager {
 //            }
     }
 
+    public void destroy(/* TODO TopViewDescriptor */) {
+        if (layout != null) {
+            layout.removeAllViews();
+
+            communicator.stop();
+        }
+    }
+
     private void createView(/* Source: */ final InputStream svgStream, /* Target */ final RelativeLayout layout, final Map<String, TopViewButtonToItemAdapter> buttonToItemAdapters) {
         assert svgStream != null;
         assert layout != null;
         assert buttonToItemAdapters != null;
-
-        layout.removeAllViews();
 
         final Map<String, TopViewButtonDescriptor> buttonDescriptors = new TopViewSVGToButtonParser().parse(svgStream);
 

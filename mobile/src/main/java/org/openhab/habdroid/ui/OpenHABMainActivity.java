@@ -608,7 +608,8 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         // Get the layout within the top view should be created
         final RelativeLayout topViewLayout = (RelativeLayout) findViewById(R.id.top_view_layout);
         // Load top view
-        topViewManager.loadForSitemap(sitemapUrl, topViewLayout);
+        topViewManager.destroy();
+        topViewManager.createForSitemap(sitemapUrl, topViewLayout);
     }
 
     @Override
