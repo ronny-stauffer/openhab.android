@@ -8,9 +8,13 @@ import android.view.View;
 import android.widget.ImageView;
 
 import com.caverock.androidsvg.SVG;
+import com.caverock.androidsvg.SVGParseException;
 
-import org.openhab.habdroid.R;
-import org.openhab.habdroid.model.topview.StringUtil;
+import org.openhab.habdroid.model.topview.TopViewParsingException;
+import org.openhab.habdroid.model.topview.common.StringUtil;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Created by staufferr on 10.10.2014.
@@ -34,6 +38,21 @@ public class SVGImageViewFactory {
             throw new IllegalArgumentException("fileName must not be undefined or empty!");
         }
 
+        InputStream stream = null;
+        try {
+            stream = assetManager.open(fileName);
+        } catch (IOException e) {
+            throw new TopViewParsingException("I/O error while accessing SVG image asset!");
+        }
+
+        return create(stream);
+    }
+
+    public ImageView create(final InputStream stream) {
+        if (stream == null) {
+            throw new NullPointerException("stream must not be undefined!");
+        }
+
         final ImageView imageView = new ImageView(context);
 
         imageView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
@@ -50,15 +69,18 @@ public class SVGImageViewFactory {
                 // Clear background to white
                 canvas.drawRGB(255, 255, 255);
 
+                SVG svg = null;
                 try {
-                    SVG svg = SVG.getFromAsset(assetManager, fileName);
-                    float svgWidth = svg.getDocumentWidth();
-                    float svgHeight = svg.getDocumentHeight();
-
-                    svg.renderToCanvas(canvas); // Does not scale the SVG image!
-                } catch (Exception e) {
-                    throw new RuntimeException("MARKER 111");
+                    svg = SVG.getFromInputStream(stream);
+//                    svg = SVG.getFromAsset(assetManager, fileName);
+                } catch (SVGParseException e) {
+                    throw new RuntimeException("Cannot parse SVG image!", e);
                 }
+
+                float svgWidth = svg.getDocumentWidth();
+                float svgHeight = svg.getDocumentHeight();
+
+                svg.renderToCanvas(canvas); // Does not scale the SVG image!
 
                 imageView.setImageBitmap(bitmap);
             }

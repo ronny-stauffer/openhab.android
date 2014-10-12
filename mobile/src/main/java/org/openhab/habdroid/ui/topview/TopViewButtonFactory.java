@@ -3,6 +3,7 @@ package org.openhab.habdroid.ui.topview;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.RelativeLayout;
@@ -15,6 +16,8 @@ import org.openhab.habdroid.model.topview.TopViewButtonToItemAdapter;
  * Created by staufferr on 10.10.2014.
  */
 public class TopViewButtonFactory {
+    private final String TAG = this.getClass().getName();
+
     private final Context context;
 
     public TopViewButtonFactory(Context context) {
@@ -36,11 +39,20 @@ public class TopViewButtonFactory {
         final Button button = new Button(context) {
             @Override
             protected void onDraw(Canvas canvas) {
+//                long threadId = Thread.currentThread().getId();
+//                String threadName = Thread.currentThread().getName();
+
                 super.onDraw(canvas);
 
                 TopViewButtonToItemAdapter toItemAdapter = (TopViewButtonToItemAdapter)getTag();
                 if (toItemAdapter != null) {
-                    getBackground().setAlpha(toItemAdapter.getButtonState() ? 255 : 0);
+                    if (toItemAdapter.isOnline()) {
+                        getBackground().setAlpha(toItemAdapter.getButtonState() ? 255 : 0);
+                    } else {
+                        //TODO Do something appropriate (maybe draw a big red cross over the button?)
+                        Log.d(TAG, String.format("Button %s is offline.", toItemAdapter.getButtonDescriptor().getItem()));
+                        getBackground().setAlpha(toItemAdapter.getButtonState() ? 255 : 0);
+                    }
                 }
             }
         };

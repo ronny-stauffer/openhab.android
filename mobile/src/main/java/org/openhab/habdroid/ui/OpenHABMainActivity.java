@@ -45,7 +45,6 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.AdapterView;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
@@ -63,17 +62,10 @@ import org.openhab.habdroid.core.DocumentHttpResponseHandler;
 import org.openhab.habdroid.core.NotificationDeletedBroadcastReceiver;
 import org.openhab.habdroid.core.OpenHABTracker;
 import org.openhab.habdroid.core.OpenHABTrackerReceiver;
-import org.openhab.habdroid.model.OpenHABItem;
 import org.openhab.habdroid.model.OpenHABLinkedPage;
 import org.openhab.habdroid.model.OpenHABSitemap;
-import org.openhab.habdroid.model.OpenHABWidget;
-import org.openhab.habdroid.model.topview.TopViewButtonDescriptor;
-import org.openhab.habdroid.model.topview.TopViewButtonToItemAdapter;
-import org.openhab.habdroid.model.topview.TopViewSVGToButtonParser;
-import org.openhab.habdroid.model.topview.common.Communicator;
 import org.openhab.habdroid.ui.drawer.OpenHABDrawerAdapter;
-import org.openhab.habdroid.ui.topview.SVGImageViewFactory;
-import org.openhab.habdroid.ui.topview.TopViewButtonFactory;
+import org.openhab.habdroid.ui.topview.TopViewManager;
 import org.openhab.habdroid.util.Constants;
 import org.openhab.habdroid.util.MyAsyncHttpClient;
 import org.openhab.habdroid.util.Util;
@@ -83,9 +75,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import de.duenndns.ssl.MTMDecision;
 import de.duenndns.ssl.MemorizingResponder;
@@ -601,6 +591,8 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         }
     }
 
+    private final TopViewManager topViewManager = new TopViewManager(this);
+
     private void openSitemap(String sitemapUrl) {
         Log.i(TAG, "Opening sitemap at " + sitemapUrl);
         sitemapRootUrl = sitemapUrl;
@@ -608,130 +600,10 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         pagerAdapter.openPage(sitemapRootUrl);
         pager.setCurrentItem(0);
 
-        if (sitemapUrl.equals("http://10.20.34.66:8080/rest/sitemaps/test/test")) {
-//            String sitemapUrl1 = "http://10.20.34.66:8080/rest/sitemaps/test/test";
-            String sitemapUrl1 = "http://10.20.34.66:8080/rest/sitemaps/test_top_view/test_top_view";
-
-            // Get the root of the view (sub-)tree we are going to modify
-            RelativeLayout topViewLayout = (RelativeLayout) findViewById(R.id.top_view_layout);
-
-            // TEST
-//        // Load SVG into the image view
-//        final ImageView topViewImageView = (ImageView) findViewById(R.id.top_view);
-//        int topViewWidth = topViewImageView.getWidth(); // Results to 0 because view isn't "layouted" yet
-//        int topViewHeight = topViewImageView.getHeight(); // "
-//        topViewImageView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-//            @Override
-//            public void onLayoutChange(View view, int i, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
-//                // Now the image view knows its actual size
-//                int viewWidth = view.getWidth();
-//                int viewHeight = view.getHeight();
-//
-//                // Create bitmap of that size and
-//                Bitmap bitmap = Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
-//                Canvas canvas = new Canvas(bitmap);
-//
-//                // Clear background to white
-//                canvas.drawRGB(255, 255, 255);
-//
-////                Paint paint = new Paint();
-////                paint.setColor(Color.RED);
-////                canvas.drawRect(new Rect(0, 0, 100, 100), paint);
-//
-//                try {
-//                    SVG svg = SVG.getFromAsset(getAssets(), "top_view.svg");
-//                    float svgWidth = svg.getDocumentWidth();
-//                    float svgHeight = svg.getDocumentHeight();
-//
-//                    svg.renderToCanvas(canvas); // Does not scale the SVG image!
-//                } catch (Exception e) {
-//                    throw new RuntimeException("MARKER 111");
-//                }
-//
-//                topViewImageView.setImageBitmap(bitmap);
-//            }
-//        });
-            // END TEST
-
-            ImageView topViewImageView = new SVGImageViewFactory(this).createFromAsset(getAssets(), "top_view.svg");
-            RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT); // Mandatory parameters
-            topViewLayout.addView(topViewImageView, layoutParams);
-
-            // Alternative approach: Using SVGImageView
-//        SVGImageView svgImageView = new SVGImageView(this);
-//        svgImageView.setImageAsset("top_view.svg");
-//        topViewLayout.addView(svgImageView,
-//                new FrameLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
-
-            // TEST
-//        // Add a button programmatically
-//        final Button button = new Button(this);
-//        //button.setText("B"); // Set text
-//        button.setBackgroundDrawable(getResources().getDrawable(R.drawable.top_view_button_background)); // Set background
-//        button.getBackground().setAlpha(0); // Set background to transparent
-//        //button.getBackground().setAlpha(10); // Set background to nearly transparent
-//        button.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                // Switch the button state
-//                buttonState = !buttonState;
-//
-//                // "Highlight" button if it is activated
-//                button.getBackground().setAlpha(buttonState ? 255 : 0);
-//
-////                new AlertDialog.Builder(context)
-////                .setTitle("Event")
-////                .setMessage("B was clicked!")
-////                .create().show();
-//            }
-//        });
-//        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(100, 100); // Mandatory parameters
-//        layoutParams.setMargins(200, 200, 0, 0); // Determines position
-//        topViewLayout.addView(button, layoutParams);
-            // END TEST
-
-            final Communicator communicator = new Communicator(this);
-
-            final Map<String, TopViewButtonDescriptor> buttonDescriptors = new TopViewSVGToButtonParser().parseAsset(getAssets(), "top_view.svg");
-            final Map<String, TopViewButtonToItemAdapter> buttonToItemAdapters = new HashMap<String, TopViewButtonToItemAdapter>();
-            TopViewButtonFactory buttonFactory = new TopViewButtonFactory(this);
-            for (TopViewButtonDescriptor buttonDescriptor : buttonDescriptors.values()) {
-                /* Button button */ TopViewButtonToItemAdapter buttonToItemAdapter = buttonFactory.create(buttonDescriptor, new TopViewButtonToItemAdapter.SendCommandHandler() {
-                    @Override
-                    public void sendCommand(OpenHABItem item, String command) {
-                        // Called from the UI thread
-
-                        communicator.sendCommand(item, command);
-                    }
-                });
-                buttonToItemAdapters.put(buttonToItemAdapter.getButtonDescriptor().getItem(), buttonToItemAdapter);
-                topViewLayout.addView(/* button */ buttonToItemAdapter.getButton());
-            }
-
-            communicator.loadPage(sitemapUrl1, new Communicator.StateUpdateHandler() {
-                @Override
-                public void stateUpdate(Iterable<OpenHABWidget> widgets) {
-                    // Called from a background thread
-
-                    for (OpenHABWidget widget : widgets) {
-                        OpenHABItem item = widget.getItem();
-                        String itemName = item.getName();
-
-                        if (buttonToItemAdapters.containsKey(itemName)) {
-                            TopViewButtonToItemAdapter buttonToItemAdapter = buttonToItemAdapters.get(itemName);
-
-                            buttonToItemAdapter.updateItem(item);
-                        }
-                    }
-                }
-            });
-        }
-        if (sitemapUrl.equals("http://10.20.34.66:18080/rest/sitemaps/test/test")) {
-            String sitemapUrl2 = "http://10.20.34.66:18080/rest/sitemaps/test_top_view/testTopView";
-        }
-        if (sitemapUrl.equals("https://my.openhab.org/rest/sitemaps/test/test")) {
-            String sitemapUrl3 = "https://my.openhab.org/rest/sitemaps/test_top_view/testTopView";
-        }
+        // Get the layout within the top view should be created
+        final RelativeLayout topViewLayout = (RelativeLayout) findViewById(R.id.top_view_layout);
+        // Load top view
+        topViewManager.loadForSitemap(sitemapUrl, topViewLayout);
     }
 
     @Override

@@ -14,7 +14,8 @@ public class TopViewButtonToItemAdapter {
     private final TopViewButtonDescriptor buttonDescriptor;
     private final Button button;
 
-    private OpenHABItem item;
+    private volatile boolean isOnline;
+    private volatile OpenHABItem item;
 
     private volatile boolean buttonState;
     private volatile long lastStateUpdateTimestamp;
@@ -31,8 +32,27 @@ public class TopViewButtonToItemAdapter {
         return button;
     }
 
-    public OpenHABItem getItem() {
-        return item;
+    public boolean isOnline() {
+        return isOnline;
+    }
+
+//    public OpenHABItem getItem() {
+//        synchronized (monitor) {
+//            return item;
+//        }
+//    }
+
+    // Called from an arbitrary thread, maybe a UI helper background thread
+    public boolean checkOnlineStatus() {
+        synchronized (monitor) {
+            isOnline = item != null; /* and last bound timestamp is not too old */
+        }
+
+        if (!isOnline) {
+            button.invalidate();
+        }
+
+        return isOnline;
     }
 
     public boolean getButtonState() {
@@ -63,6 +83,8 @@ public class TopViewButtonToItemAdapter {
 
         synchronized (monitor) {
             this.item = item;
+
+            checkOnlineStatus();
         }
 
         boolean newButtonState = "ON".equals(item.getState());
@@ -101,6 +123,13 @@ public class TopViewButtonToItemAdapter {
 
                 return buttonState;
             }
+        }
+
+        // Check precondition: Button is "online" (= there's an item bound to the button)
+        if (!checkOnlineStatus()) {
+            Log.d(TAG, String.format("Button %s is not online!", buttonDescriptor.getItem()));
+
+            return buttonState;
         }
 
         boolean newButtonState = !buttonState;

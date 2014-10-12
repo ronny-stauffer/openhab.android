@@ -3,15 +3,14 @@ package org.openhab.habdroid.model.topview;
 import android.content.res.AssetManager;
 import android.util.Xml;
 
+import org.openhab.habdroid.model.topview.common.StreamUtil;
+import org.openhab.habdroid.model.topview.common.StringUtil;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
-import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,8 +32,9 @@ public class TopViewSVGToButtonParser {
         try {
             stream = assetManager.open(fileName);
         } catch (IOException e) {
-            throw new TopViewParsingException("I/O error while accessing top view definition!");
+            throw new TopViewParsingException("I/O error while accessing top view definition asset!");
         }
+
         return parse(stream);
     }
 
@@ -59,7 +59,7 @@ public class TopViewSVGToButtonParser {
                 throw new TopViewParsingException("I/O error while parsing top view definition!", e);
             }
         } finally {
-            closeStream(stream);
+            StreamUtil.closeStream(stream);
         }
     }
 
@@ -167,15 +167,5 @@ public class TopViewSVGToButtonParser {
         }
 
         return null;
-    }
-
-    private void closeStream(InputStream stream) {
-        assert stream != null;
-
-        try {
-            stream.close();
-        } catch (IOException e) {
-            // Ignore exception
-        }
     }
 }

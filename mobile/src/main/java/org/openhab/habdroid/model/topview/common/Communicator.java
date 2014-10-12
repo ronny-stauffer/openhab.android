@@ -15,7 +15,6 @@ import org.openhab.habdroid.core.DocumentHttpResponseHandler;
 import org.openhab.habdroid.model.OpenHABItem;
 import org.openhab.habdroid.model.OpenHABWidget;
 import org.openhab.habdroid.model.OpenHABWidgetDataSource;
-import org.openhab.habdroid.model.topview.StringUtil;
 import org.openhab.habdroid.ui.OpenHABMainActivity;
 import org.openhab.habdroid.util.MyAsyncHttpClient;
 import org.w3c.dom.Document;
@@ -26,7 +25,6 @@ import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.PriorityQueue;
 
 /**
  * Created by staufferr on 11.10.2014.
@@ -36,17 +34,17 @@ public class Communicator {
 
     private final Context context;
 
+    // Per thread state
     private String sitemapPageUrl;
     private String mAtmosphereTrackingId;
-
-    private final MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
-
-    private final Handler networkHandler = new Handler();
-    private Runnable networkRunnable;
 
     private final OpenHABWidgetDataSource openHABWidgetDataSource = new OpenHABWidgetDataSource();
 
     private StateUpdateHandler stateUpdateHandler;
+
+    private final Handler networkHandler = new Handler();
+    private Runnable networkRunnable;
+    // Per thread state END
 
     public Communicator(Context context) {
         if (context == null) {
@@ -54,8 +52,6 @@ public class Communicator {
         }
 
         this.context = context;
-
-//        this.mAsyncHttpClient = createHttpClient();
     }
 
     public void loadPage(String sitemapPageUrl, StateUpdateHandler stateUpdateHandler) {
@@ -76,6 +72,9 @@ public class Communicator {
 
     private void loadPage(/* String pageUrl, */ final boolean notInitialRequest) {
 //        Log.i(TAG, " showPage for " + pageUrl + " notInitialRequest = " + notInitialRequest);
+
+        MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
+
         // Cancel any existing http request to openHAB (typically ongoing long poll)
 //        if (!notInitialRequest)
 //            startProgressIndicator();
@@ -99,6 +98,9 @@ public class Communicator {
         mAsyncHttpClient.get(context, sitemapPageUrl, headers.toArray(new BasicHeader[]{}), null, new DocumentHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, Document document) {
+//                long threadId = Thread.currentThread().getId();
+//                String threadName = Thread.currentThread().getName();
+
                 for (int i = 0; i < headers.length; i++) {
                     if (headers[i].getName().equalsIgnoreCase("X-Atmosphere-tracking-id")) {
                         Log.i(TAG, "Found Atmosphere tracking id: " + headers[i].getValue());
@@ -147,7 +149,7 @@ public class Communicator {
                     networkHandler.postDelayed(networkRunnable, 10 * 1000);
                 }
             }
-        }, /* mTag */ context);
+        }, /* tag: */ /* mTag */ this);
     }
 
     /**
@@ -242,6 +244,7 @@ public class Communicator {
             throw new RuntimeException("Cannot convert command string to entity!", e);
         }
 
+        MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
         mAsyncHttpClient.post(context, item.getLink(), commandEntity, "text/plain", new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(String response) {

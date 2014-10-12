@@ -1,4 +1,4 @@
-package org.openhab.habdroid.model.topview;
+package org.openhab.habdroid.model.topview.common;
 
 /**
  * Created by staufferr on 10.10.2014.

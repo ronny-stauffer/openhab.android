@@ -1,5 +1,7 @@
 package org.openhab.habdroid.model.topview;
 
+import org.openhab.habdroid.model.topview.common.StringUtil;
+
 /**
  * Created by staufferr on 10.10.2014.
  */
