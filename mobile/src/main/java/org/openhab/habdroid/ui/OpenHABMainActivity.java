@@ -15,6 +15,7 @@ package org.openhab.habdroid.ui;
 
 import android.Manifest;
 import android.app.ActionBar;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.app.ProgressDialog;
@@ -202,6 +203,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         // Check if we have openHAB page url in saved instance state?
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
         mDrawerList = (ListView) findViewById(R.id.left_drawer);
+        final Activity activity = this;
         mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout, R.drawable.ic_navigation_drawer,
                 R.string.app_name, R.string.app_name) {
             public void onDrawerClosed(View view) {
@@ -210,6 +212,7 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                 if (view.getId() == R.id.top_view_layout) {
                     Log.d(TAG, "Top view closed.");
 
+                    activity.setTitle(previousActionBarTitle);
                     //getActionBar().setTitle(previousActionBarTitle);
                 }
             }
@@ -220,9 +223,11 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
                 if (drawerView.getId() == R.id.top_view_layout) {
                     Log.d(TAG, "Top view openend.");
 
-                    ActionBar actionBar = getActionBar();
-                    previousActionBarTitle = actionBar.getTitle();
-                    actionBar.setTitle("Top View");
+                    previousActionBarTitle = activity.getTitle();
+                    activity.setTitle("Top View");
+//                    ActionBar actionBar = getActionBar();
+//                    previousActionBarTitle = actionBar.getTitle();
+//                    actionBar.setTitle("Top View");
                 }
             }
         };

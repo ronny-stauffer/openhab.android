@@ -4,6 +4,9 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Picture;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -55,12 +58,16 @@ public class SVGImageViewFactory {
 
         final ImageView imageView = new ImageView(context);
 
+//        imageView.requestLayout();
+//        int viewWidth = imageView.getWidth();
+//        int viewHeight = imageView.getHeight();
+
         imageView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override
             public void onLayoutChange(View view, int i, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
                 // Now the image view knows its actual size
-                int viewWidth = view.getWidth();
-                int viewHeight = view.getHeight();
+                int viewWidth = view.getWidth(); // = 1216
+                int viewHeight = view.getHeight(); // 696
 
                 // Create bitmap of that size and
                 Bitmap bitmap = Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
@@ -81,6 +88,9 @@ public class SVGImageViewFactory {
                 float svgHeight = svg.getDocumentHeight();
 
                 svg.renderToCanvas(canvas); // Does not scale the SVG image!
+                // Alternative: Render the SVG image to a picture and draw this picture scaled to the size of the image view
+//                Picture picture = svg.renderToPicture();
+//                canvas.drawPicture(picture, new Rect(0, 0, viewWidth, viewHeight));
 
                 imageView.setImageBitmap(bitmap);
             }

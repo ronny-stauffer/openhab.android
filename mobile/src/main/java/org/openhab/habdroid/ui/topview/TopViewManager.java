@@ -1,14 +1,12 @@
 package org.openhab.habdroid.ui.topview;
 
 import android.app.Activity;
-import android.content.Context;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
 import com.loopj.android.http.AsyncHttpResponseHandler;
 
 import org.apache.http.Header;
-import org.openhab.habdroid.R;
 import org.openhab.habdroid.model.OpenHABItem;
 import org.openhab.habdroid.model.OpenHABWidget;
 import org.openhab.habdroid.model.topview.TopViewButtonDescriptor;
@@ -22,10 +20,9 @@ import org.openhab.habdroid.util.MyAsyncHttpClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Created by staufferr on 12.10.2014.
@@ -79,9 +76,21 @@ public class TopViewManager {
 //                    svgBuffer.set(ByteBuffer.wrap(responseBody.getBytes()));
 //                    svgBuffer.notifyAll();
 
-                InputStream svgStream = new ByteArrayInputStream(responseBody.getBytes());
-                // Create view
-                createView(svgStream, layout, buttonToItemAdapters);
+                InputStream svgStream;
+                try {
+                    svgStream = new ByteArrayInputStream(responseBody.getBytes("utf-8"));
+                } catch (UnsupportedEncodingException e) {
+                    throw new RuntimeException("Unsupported encoding!", e);
+                }
+                try {
+                    // Create view
+                    createView(svgStream, layout, buttonToItemAdapters);
+                } finally {
+                    StreamUtil.closeStream(svgStream);
+                }
+
+                // Load Model
+                loadModel(modelSitemapUrl, buttonToItemAdapters);
             }
 
             @Override
@@ -97,42 +106,25 @@ public class TopViewManager {
 //            } catch (InterruptedException e) {
 //                // Ignore exception
 //            }
-
-        // Load Model
-        communicator.loadPage(modelSitemapUrl, new Communicator.StateUpdateHandler() {
-            @Override
-            public void stateUpdate(Iterable<OpenHABWidget> widgets) {
-                // Potentially called from a background thread
-
-                for (OpenHABWidget widget : widgets) {
-                    OpenHABItem item = widget.getItem();
-                    String itemName = item.getName();
-
-                    if (buttonToItemAdapters.containsKey(itemName)) {
-                        TopViewButtonToItemAdapter buttonToItemAdapter = buttonToItemAdapters.get(itemName);
-
-                        buttonToItemAdapter.updateItem(item);
-                    } // else: No button for item
-                }
-            }
-        });
     }
 
-    private void createView(/* Source: */ InputStream svgStream, /* Target */ RelativeLayout layout, Map<String, TopViewButtonToItemAdapter> buttonToItemAdapters) {
+    private void createView(/* Source: */ final InputStream svgStream, /* Target */ final RelativeLayout layout, final Map<String, TopViewButtonToItemAdapter> buttonToItemAdapters) {
         assert svgStream != null;
         assert layout != null;
         assert buttonToItemAdapters != null;
 
-        final ImageView topViewImageView = new SVGImageViewFactory(activity).create(svgStream);
-//                final ImageView topViewImageView = new SVGImageViewFactory(this).createFromAsset(activity.getAssets(), "top_view.svg");
-        //topViewImageView.setVisibility(View.INVISIBLE);
-        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT); // Mandatory parameters
-        layout.addView(topViewImageView, layoutParams);
+        layout.removeAllViews();
+
+        final Map<String, TopViewButtonDescriptor> buttonDescriptors = new TopViewSVGToButtonParser().parse(svgStream);
 
         StreamUtil.resetStream(svgStream);
 
-//            final Map<String, TopViewButtonDescriptor> buttonDescriptors = new TopViewSVGToButtonParser().parse(svgStream);
-        final Map<String, TopViewButtonDescriptor> buttonDescriptors = new TopViewSVGToButtonParser().parseAsset(activity.getAssets(), "top_view.svg");
+        final ImageView topViewImageView = new SVGImageViewFactory(activity).create(svgStream);
+//        final ImageView topViewImageView = new SVGImageViewFactory(activity).createFromAsset(activity.getAssets(), "top_view.svg");
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT); // Mandatory parameters
+        layout.addView(topViewImageView, layoutParams);
+
+//        final Map<String, TopViewButtonDescriptor> buttonDescriptors = new TopViewSVGToButtonParser().parseAsset(activity.getAssets(), "top_view.svg");
         TopViewButtonFactory buttonFactory = new TopViewButtonFactory(activity);
         for (TopViewButtonDescriptor buttonDescriptor : buttonDescriptors.values()) {
                 /* Button button */
@@ -147,5 +139,27 @@ public class TopViewManager {
             buttonToItemAdapters.put(buttonToItemAdapter.getButtonDescriptor().getItem(), buttonToItemAdapter);
             layout.addView(/* button */ buttonToItemAdapter.getButton());
         }
+    }
+
+    private void loadModel(final String modelSitemapUrl, final Map<String, TopViewButtonToItemAdapter> buttonToItemAdapters) {
+        assert !StringUtil.isStringUndefinedOrEmpty(modelSitemapUrl);
+        assert buttonToItemAdapters != null;
+
+        communicator.startLoadingPage(modelSitemapUrl, new Communicator.StateUpdateHandler() {
+            @Override
+            public void stateUpdate(Iterable<OpenHABItem> items) {
+                // Potentially called from a background thread
+
+                for (OpenHABItem item : items) {
+                    String itemName = item.getName();
+
+                    if (buttonToItemAdapters.containsKey(itemName)) {
+                        TopViewButtonToItemAdapter buttonToItemAdapter = buttonToItemAdapters.get(itemName);
+
+                        buttonToItemAdapter.updateItem(item);
+                    } // else: No button for item
+                }
+            }
+        });
     }
 }

@@ -23,6 +23,7 @@ import org.w3c.dom.Node;
 import java.io.UnsupportedEncodingException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -54,7 +55,13 @@ public class Communicator {
         this.context = context;
     }
 
-    public void loadPage(String sitemapPageUrl, StateUpdateHandler stateUpdateHandler) {
+    // Single-shot
+    public void loadPage(String sitemapPageUrl, /* TODO: UpdateHandler... updateHandlers */ StateUpdateHandler stateUpdateHandler) {
+        //TODO Implement
+    }
+
+    // Continuous
+    public void startLoadingPage(String sitemapPageUrl, StateUpdateHandler stateUpdateHandler) {
         if (StringUtil.isStringUndefinedOrEmpty(sitemapPageUrl)) {
             throw new IllegalArgumentException("sitemapPageUrl must not be undefined or empty!");
         }
@@ -68,6 +75,10 @@ public class Communicator {
         this.stateUpdateHandler = stateUpdateHandler;
 
         loadPage(false);
+    }
+
+    public void restart() {
+        //TODO Implement
     }
 
     private void loadPage(/* String pageUrl, */ final boolean notInitialRequest) {
@@ -169,6 +180,7 @@ public class Communicator {
 
 //        widgetList.clear();
         List<OpenHABWidget> widgets = new ArrayList<OpenHABWidget>();
+        List<OpenHABItem> items = new ArrayList<OpenHABItem>();
         for (OpenHABWidget widget : openHABWidgetDataSource.getWidgets()) {
             // Remove frame widgets with no label text
             if (widget.getType().equals("Frame") && TextUtils.isEmpty(widget.getLabel()))
@@ -180,9 +192,10 @@ public class Communicator {
 
 //            widgetList.add(widget);
             widgets.add(widget);
+            items.add(item);
         }
 
-        stateUpdateHandler.stateUpdate(widgets);
+        stateUpdateHandler.stateUpdate(items);
 
 //        openHABWidgetAdapter.notifyDataSetChanged();
 //        if (!longPolling && isAdded()) {
@@ -237,6 +250,8 @@ public class Communicator {
             throw new IllegalArgumentException("command must not be undefined or empty!");
         }
 
+        Log.d(TAG, String.format("Send command '%s' to item %s...", command, item.getName()));
+
         StringEntity commandEntity;
         try {
             commandEntity = new StringEntity(command);
@@ -267,7 +282,15 @@ public class Communicator {
         return httpClient;
     }
 
-    public static interface StateUpdateHandler {
-        void stateUpdate(Iterable<OpenHABWidget> widgets);
+    public static interface UpdateHandler {
+
+    }
+
+    public static interface PageUpdateHandler extends UpdateHandler {
+        void pageUpdate(Iterable<OpenHABWidget> widgets);
+    }
+
+    public static interface StateUpdateHandler extends UpdateHandler {
+        void stateUpdate(Iterable<OpenHABItem> items);
     }
 }

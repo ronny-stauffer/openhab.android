@@ -156,6 +156,11 @@ public class TopViewButtonToItemAdapter {
         return commandAsString;
     }
 
+    private static enum ItemType {
+        BUTTON,
+        SWITCH
+    }
+
     private static enum Command {
         TOGGLE
     }

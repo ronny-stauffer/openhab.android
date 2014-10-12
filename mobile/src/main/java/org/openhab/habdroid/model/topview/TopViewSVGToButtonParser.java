@@ -8,8 +8,10 @@ import org.openhab.habdroid.model.topview.common.StringUtil;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,15 +30,22 @@ public class TopViewSVGToButtonParser {
             throw new IllegalArgumentException("fileName must not be undefined or empty!");
         }
 
+        Map<String, TopViewButtonDescriptor> buttonDescriptors;
+
         InputStream stream = null;
         try {
             stream = assetManager.open(fileName);
         } catch (IOException e) {
             throw new TopViewParsingException("I/O error while accessing top view definition asset!");
         }
+        try {
+            buttonDescriptors = parse(stream);
+        } finally {
+            StreamUtil.closeStream(stream);
+        }
 
-        return parse(stream);
-    }
+        return buttonDescriptors;
+     }
 
     public Map<String, TopViewButtonDescriptor> parse(InputStream stream) throws TopViewParsingException {
         if (stream == null) {
@@ -48,7 +57,7 @@ public class TopViewSVGToButtonParser {
             try {
                 parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
 
-                parser.setInput(stream, null);
+                parser.setInput(stream, /* Encoding: */ null);
 
                 parser.nextTag();
 
@@ -59,7 +68,7 @@ public class TopViewSVGToButtonParser {
                 throw new TopViewParsingException("I/O error while parsing top view definition!", e);
             }
         } finally {
-            StreamUtil.closeStream(stream);
+//            StreamUtil.closeStream(stream);
         }
     }
 
@@ -77,7 +86,7 @@ public class TopViewSVGToButtonParser {
             if (name.equals("g")) {
                 String groupType = parser.getAttributeValue(namespace, "inkscape:groupmode");
                 String groupName = parser.getAttributeValue(namespace, "inkscape:label");
-                if ("layer".equals(groupType) && "Buttons".equals(groupName)) {
+                if ("layer".equals(groupType) && "Items".equals(groupName)) {
                     String groupTransform = parser.getAttributeValue(namespace, "transform");
                     if (groupTransform != null) {
                         throw new TopViewParsingException("Transformations aren't supported yet!");
@@ -140,10 +149,21 @@ public class TopViewSVGToButtonParser {
         }
 
         if (rectDescription != null) {
-            int buttonXPosition = Integer.valueOf(rectXPosition);
-            int buttonYPosition = Integer.valueOf(rectYPosition);
-            int buttonWidth = Integer.valueOf(rectWidth);
-            int buttonHeight = Integer.valueOf(rectHeight);
+            int rectXPositionDecimalPointIndex = rectXPosition.indexOf('.');
+            String rectXPositionInteger = rectXPositionDecimalPointIndex != -1 ? rectXPosition.substring(0, rectXPositionDecimalPointIndex) : rectXPosition;
+            int buttonXPosition = Integer.valueOf(rectXPositionInteger);
+
+            int rectYPositionDecimalPointIndex = rectYPosition.indexOf('.');
+            String rectYPositionInteger = rectYPositionDecimalPointIndex != -1 ? rectYPosition.substring(0, rectYPositionDecimalPointIndex) : rectYPosition;
+            int buttonYPosition = Integer.valueOf(rectYPositionInteger);
+
+            int rectWidthDecimalPointIndex = rectWidth.indexOf('.');
+            String rectWidthInteger = rectWidthDecimalPointIndex != -1 ? rectWidth.substring(0, rectWidthDecimalPointIndex) : rectWidth;
+            int buttonWidth = Integer.valueOf(rectWidthInteger);
+
+            int rectHeightDecimalPointIndex = rectHeight.indexOf('.');
+            String rectHeightInteger = rectHeightDecimalPointIndex != -1 ? rectHeight.substring(0, rectHeightDecimalPointIndex) : rectHeight;
+            int buttonHeight = Integer.valueOf(rectHeightInteger);
 
             return TopViewButtonDescriptor.create(buttonXPosition, buttonYPosition, buttonWidth, buttonHeight, /* item: */ rectDescription);
         }

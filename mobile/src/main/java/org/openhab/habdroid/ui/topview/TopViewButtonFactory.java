@@ -56,10 +56,10 @@ public class TopViewButtonFactory {
                 }
             }
         };
-        button.setText(buttonDescriptor.getItem()); // Set text
+//        button.setText(buttonDescriptor.getItem()); // Set text
         button.setBackgroundDrawable(context.getResources().getDrawable(R.drawable.top_view_button_background)); // Set background
         button.getBackground().setAlpha(0); // Set background to transparent
-        //button.getBackground().setAlpha(10); // Set background to nearly transparent
+//        button.getBackground().setAlpha(10); // Set background to nearly transparent
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
