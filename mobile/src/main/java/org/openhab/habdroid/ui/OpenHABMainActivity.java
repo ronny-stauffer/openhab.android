@@ -339,6 +339,8 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
 //            topViewLayout.addView(button2);
 //        }
 
+        topViewManager = new TopViewManager(this);
+
         getActionBar().setDisplayHomeAsUpEnabled(true);
         getActionBar().setHomeButtonEnabled(true);
         if (getIntent() != null) {
@@ -405,6 +407,10 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
             Log.d(TAG, String.format("Loaded %d fragments", stateFragment.getFragmentList().size()));
             pager.setCurrentItem(stateFragment.getCurrentPage());
             Log.d(TAG, String.format("Loaded current page = %d", stateFragment.getCurrentPage()));
+
+            if (hasTopViewCreated) {
+                topViewManager.resume();
+            }
         }
         if (!TextUtils.isEmpty(mPendingNfcPage)) {
             openNFCPageIfPending();
@@ -596,7 +602,8 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         }
     }
 
-    private final TopViewManager topViewManager = new TopViewManager(this);
+    private TopViewManager topViewManager;
+    private boolean hasTopViewCreated;
 
     private void openSitemap(String sitemapUrl) {
         Log.i(TAG, "Opening sitemap at " + sitemapUrl);
@@ -605,11 +612,15 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         pagerAdapter.openPage(sitemapRootUrl);
         pager.setCurrentItem(0);
 
+        // Called whenever ...
         // Get the layout within the top view should be created
         final RelativeLayout topViewLayout = (RelativeLayout) findViewById(R.id.top_view_layout);
         // Load top view
-        topViewManager.destroy();
+        if (hasTopViewCreated) {
+            topViewManager.destroy();
+        }
         topViewManager.createForSitemap(sitemapUrl, topViewLayout);
+        hasTopViewCreated = true;
     }
 
     @Override
@@ -785,6 +796,10 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
 //            }
 //        };
 //        new Thread(can).start();
+
+        if (hasTopViewCreated) {
+            topViewManager.pause();
+        }
     }
 
     /**

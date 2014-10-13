@@ -3,8 +3,10 @@ package org.openhab.habdroid.ui.topview;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
@@ -37,35 +39,39 @@ public class TopViewButtonFactory {
         }
 
         final Button button = new Button(context) {
-            @Override
-            protected void onDraw(Canvas canvas) {
-//                long threadId = Thread.currentThread().getId();
-//                String threadName = Thread.currentThread().getName();
-
-                super.onDraw(canvas);
-
-                TopViewButtonToItemAdapter toItemAdapter = (TopViewButtonToItemAdapter)getTag();
-                if (toItemAdapter != null) {
-                    if (toItemAdapter.isOnline()) {
-                        getBackground().setAlpha(toItemAdapter.getButtonState() ? 255 : 0);
-                    } else {
-                        //TODO Do something appropriate (maybe draw a big red cross over the button?)
-                        Log.d(TAG, String.format("Button %s is offline.", toItemAdapter.getButtonDescriptor().getItem()));
-                        getBackground().setAlpha(toItemAdapter.getButtonState() ? 255 : 0);
-                    }
-                }
-            }
+//            @Override
+////            public boolean onPreDraw() {
+//            protected void onDraw(Canvas canvas) {
+////                long threadId = Thread.currentThread().getId();
+////                String threadName = Thread.currentThread().getName();
+//
+//                super.onDraw(canvas);
+//
+//                TopViewButtonToItemAdapter toItemAdapter = (TopViewButtonToItemAdapter)getTag();
+//                if (toItemAdapter != null) { // Just to be on the safe side
+//                    if (toItemAdapter.isOnline()) {
+//                        getBackground().setAlpha(toItemAdapter.getButtonState() ? 255 : 0);
+//                    } else {
+//                        //TODO Do something appropriate (maybe draw a big red cross over the button?)
+//                        Log.d(TAG, String.format("Button %s is offline.", toItemAdapter.getButtonDescriptor().getItem()));
+//
+//                        getBackground().setAlpha(0);
+//                    }
+//                }
+//
+////                return super.onPreDraw();
+//            }
         };
 //        button.setText(buttonDescriptor.getItem()); // Set text
-        button.setBackgroundDrawable(context.getResources().getDrawable(R.drawable.top_view_button_background)); // Set background
-        button.getBackground().setAlpha(0); // Set background to transparent
+//        button.setBackgroundDrawable(context.getResources().getDrawable(R.drawable.top_view_button_background)); // Set background
+//        button.getBackground().setAlpha(0); // Set background to transparent
 //        button.getBackground().setAlpha(10); // Set background to nearly transparent
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 TopViewButtonToItemAdapter toItemAdapter = (TopViewButtonToItemAdapter)view.getTag();
                 if (toItemAdapter != null) {
-                    toItemAdapter.toggleCommand();
+                    toItemAdapter.sendCommand(TopViewButtonToItemAdapter.Command.TOGGLE);
                 }
 
 //                new AlertDialog.Builder(context)
@@ -74,7 +80,12 @@ public class TopViewButtonFactory {
 //                .create().show();
             }
         });
-
+//        button.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+//            @Override
+//            public boolean onPreDraw() {
+//                return true;
+//            }
+//        });
         TopViewButtonToItemAdapter toItemAdapter = new TopViewButtonToItemAdapter(buttonDescriptor, button, sendCommandHandler);
         button.setTag(toItemAdapter);
 

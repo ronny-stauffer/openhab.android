@@ -1,9 +1,12 @@
 package org.openhab.habdroid.model.topview;
 
+import android.graphics.Color;
 import android.util.Log;
 import android.widget.Button;
 
+import org.openhab.habdroid.R;
 import org.openhab.habdroid.model.OpenHABItem;
+import org.openhab.habdroid.model.topview.common.types.SendCommandResult;
 
 /**
  * Created by staufferr on 10.10.2014.
@@ -14,11 +17,17 @@ public class TopViewButtonToItemAdapter {
     private final TopViewButtonDescriptor buttonDescriptor;
     private final Button button;
 
+    // Potentially changed by an arbitrary thread, maybe a UI helper background thread
     private volatile boolean isOnline;
+    // Potentially changed by a model (lower end) (from a background thread)
     private volatile OpenHABItem item;
-
+    private volatile long lastItemUpdateTimestamp;
     private volatile boolean buttonState;
     private volatile long lastStateUpdateTimestamp;
+
+    // Potentially changed by a model (lower end) (from a background thread)
+    private volatile boolean isSendingCommand;
+    private volatile boolean hasError;
 
     private final SendCommandHandler sendCommandHandler;
 
@@ -42,19 +51,6 @@ public class TopViewButtonToItemAdapter {
 //        }
 //    }
 
-    // Called from an arbitrary thread, maybe a UI helper background thread
-    public boolean checkOnlineStatus() {
-        synchronized (monitor) {
-            isOnline = item != null; /* and last bound timestamp is not too old */
-        }
-
-        if (!isOnline) {
-            button.invalidate();
-        }
-
-        return isOnline;
-    }
-
     public boolean getButtonState() {
         return buttonState;
     }
@@ -73,9 +69,25 @@ public class TopViewButtonToItemAdapter {
         this.buttonDescriptor = buttonDescriptor;
         this.button = button;
         this.sendCommandHandler = sendCommandHandler;
+
+        updateButton();
     }
 
-    // Called from the model (lower end) (from a background thread)
+    // Potentially called from an arbitrary thread, maybe a UI helper background thread
+    public boolean checkOnlineStatus() {
+        synchronized (monitor) {
+            long timeElapsedSinceLastItemUpdate = System.nanoTime() - lastItemUpdateTimestamp;
+            isOnline = item != null &&
+                /* last bound timestamp is not older than 6 minutes (remember: the communicator maximum cycle time is 5 minutes) */ timeElapsedSinceLastItemUpdate <= 6l * 60 * 1000 * 1000 * 1000;
+        }
+
+        //button.invalidate();
+        updateButton();
+
+        return isOnline;
+    }
+
+    // Potentially called from a model (lower end) (from a background thread)
     public void updateItem(OpenHABItem item) {
         if (item == null) {
             throw new NullPointerException("item must not be null");
@@ -83,6 +95,7 @@ public class TopViewButtonToItemAdapter {
 
         synchronized (monitor) {
             this.item = item;
+            lastItemUpdateTimestamp = System.nanoTime();
 
             checkOnlineStatus();
         }
@@ -91,7 +104,7 @@ public class TopViewButtonToItemAdapter {
         updateButtonState(newButtonState);
     }
 
-    // Called from the model (lower end) (from a background thread)
+    // Potentially called from a model (lower end) (from a background thread)
     private void updateButtonState(boolean buttonState) {
         updateButtonState(buttonState, false);
     }
@@ -109,43 +122,95 @@ public class TopViewButtonToItemAdapter {
             }
 
             //button.refreshDrawableState();
-            button.invalidate();
+            //button.invalidate();
+            updateButton();
         }
     }
 
+    // Helper
+    private void updateButton() {
+        button.post(new Runnable() {
+            public void run() {
+
+                if (isOnline) {
+                    if (isSendingCommand) {
+                        button.setText(">>>");
+                        button.setTextColor(Color.GREEN);
+                    } else if (hasError) {
+                        button.setText("!");
+                        button.setTextColor(Color.RED);
+                    } else {
+                        button.setText("");
+                    }
+                    button.setBackgroundDrawable(button.getContext().getResources().getDrawable(R.drawable.top_view_button_background)); // Set background
+                    if (buttonState) {
+                        button.getBackground().setAlpha(255);
+                    } else {
+                        button.getBackground().setAlpha(0);
+                    }
+                } else {
+                    //TODO Do something appropriate (maybe draw a big red cross over the button?)
+                    Log.d(TAG, String.format("Button %s is offline.", buttonDescriptor.getItem()));
+
+                    button.setText("Offline");
+                    button.setTextColor(Color.RED);
+                    button.setBackgroundDrawable(button.getContext().getResources().getDrawable(R.drawable.top_view_button_offline_background)); // Set background
+                    button.getBackground().setAlpha(255);
+                }
+
+            }
+        });
+    }
+
     // Called from the UI (button) (upper end) (from the UI thread)
-    public boolean toggleCommand() {
+    public void sendCommand(Command command) {
+        // Check precondition: ...
+        if (isSendingCommand) {
+            return;
+        }
+
         synchronized (monitor) {
             // Check precondition: ...
             long timeElapsedSinceLastStateUpdate = System.nanoTime() - lastStateUpdateTimestamp;
             if (timeElapsedSinceLastStateUpdate < /* 2 seconds: */ 2l * 1000 * 1000 * 1000) {
-                Log.d(TAG, String.format("Button press ignored (last external state update was %d ns ago)!", timeElapsedSinceLastStateUpdate));
+                Log.d(TAG, String.format("Button press ignored because last external state update was only %d ns ago!", timeElapsedSinceLastStateUpdate));
 
-                return buttonState;
+                return;
             }
         }
 
         // Check precondition: Button is "online" (= there's an item bound to the button)
         if (!checkOnlineStatus()) {
-            Log.d(TAG, String.format("Button %s is not online!", buttonDescriptor.getItem()));
+            Log.d(TAG, "Button press ignored because the button is not online!");
 
-            return buttonState;
+            return;
         }
 
         boolean newButtonState = !buttonState;
 
-        Log.d(TAG, String.format("Switch button %s to %s...", buttonDescriptor.getItem(), newButtonState ? "ON" : "OFF"));
+        Log.d(TAG, String.format("Switch %s to %s...", buttonDescriptor.getItem(), newButtonState ? "ON" : "OFF"));
+
+        isSendingCommand = true;
 
         // Immediately update the button state (and do not wait for the response from openHAB)
         updateButtonState(newButtonState, /* Internal call: */ true);
 
         synchronized (monitor) {
-            sendCommandHandler.sendCommand(item, getCommandAsString(Command.TOGGLE, newButtonState));
-        }
+            sendCommandHandler.sendCommand(item, getCommandAsString(command, newButtonState), new SendCommandResult() {
+                @Override
+                protected void processResult(CommandResult result) {
+                    // Potentially called from a model (lower end) (from a background thread)
 
-        return newButtonState;
+                    isSendingCommand = false;
+                    hasError = result != CommandResult.SUCCESS;
+
+                    updateButton();
+                }
+            });
+        }
     }
 
+    // Helper
     private String getCommandAsString(Command command, boolean newButtonState) {
         String commandAsString = null;
         switch (command) {
@@ -161,12 +226,12 @@ public class TopViewButtonToItemAdapter {
         SWITCH
     }
 
-    private static enum Command {
+    public static enum Command {
         TOGGLE
     }
 
     public static interface SendCommandHandler {
         // Called from the UI (button) (upper end) (from the UI thread)
-        void sendCommand(OpenHABItem item, String command);
+        void sendCommand(OpenHABItem item, String command, SendCommandResult result);
     }
 }

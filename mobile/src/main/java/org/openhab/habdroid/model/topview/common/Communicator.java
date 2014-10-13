@@ -15,6 +15,7 @@ import org.openhab.habdroid.core.DocumentHttpResponseHandler;
 import org.openhab.habdroid.model.OpenHABItem;
 import org.openhab.habdroid.model.OpenHABWidget;
 import org.openhab.habdroid.model.OpenHABWidgetDataSource;
+import org.openhab.habdroid.model.topview.common.types.SendCommandResult;
 import org.openhab.habdroid.ui.OpenHABMainActivity;
 import org.openhab.habdroid.util.MyAsyncHttpClient;
 import org.w3c.dom.Document;
@@ -23,7 +24,6 @@ import org.w3c.dom.Node;
 import java.io.UnsupportedEncodingException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -34,6 +34,8 @@ public class Communicator {
     private static final String TAG = "Communicator";
 
     private final Context context;
+
+    private final Preferences preferences;
 
     // Per thread state
     private String sitemapPageUrl;
@@ -47,12 +49,19 @@ public class Communicator {
     private Runnable networkRunnable;
     // Per thread state END
 
+    private final MyAsyncHttpClient commandsHttpClient;
+
     public Communicator(Context context) {
         if (context == null) {
             throw new NullPointerException("context must not be undefined!");
         }
 
         this.context = context;
+
+        preferences = new Preferences(context);
+
+        HttpClientFactory httpClientFactory = new HttpClientFactory(context, preferences);
+        commandsHttpClient = httpClientFactory.create();
     }
 
     // Single-shot
@@ -60,8 +69,12 @@ public class Communicator {
         //TODO Implement
     }
 
+    public boolean isRunning(/* TODO ThreadDescriptor */) {
+        return sitemapPageUrl != null;
+    }
+
     // Continuous
-    public void startLoadingPage(String sitemapPageUrl, StateUpdateHandler stateUpdateHandler) {
+    public /* TODO ThreadDescriptor */ void startLoadingPage(String sitemapPageUrl, StateUpdateHandler stateUpdateHandler) {
         if (StringUtil.isStringUndefinedOrEmpty(sitemapPageUrl)) {
             throw new IllegalArgumentException("sitemapPageUrl must not be undefined or empty!");
         }
@@ -77,28 +90,46 @@ public class Communicator {
         loadPage(false);
     }
 
-    public void restart() {
-        //TODO Implement
+    public void restart(/* TODO ThreadDescriptor */) {
+        if (sitemapPageUrl == null) {
+            throw new IllegalStateException("Communicator hasn't been started yet!");
+        }
+
+        pause();
+        loadPage(false);
     }
 
-    public void stop() {
+    public void pause(/* TODO ThreadDescriptor */) {
+        if (sitemapPageUrl == null) {
+            throw new IllegalStateException("Communicator hasn't been started yet!");
+        }
+
         MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
-
-        mAsyncHttpClient.cancelRequests(context, this, /* mayInterruptIfRunning: */ false);
+        mAsyncHttpClient.cancelRequests(context, this, /* mayInterruptIfRunning: */ true);
     }
 
-    private void loadPage(/* String pageUrl, */ final boolean notInitialRequest) {
-//        Log.i(TAG, " showPage for " + pageUrl + " notInitialRequest = " + notInitialRequest);
+    public void stop(/* TODO ThreadDescriptor */) {
+        if (sitemapPageUrl == null) {
+            throw new IllegalStateException("Communicator hasn't been started yet!");
+        }
+
+        pause();
+
+        sitemapPageUrl = null;
+    }
+
+    private void loadPage(/* String pageUrl, */ /* TODO final boolean continuous */ final boolean notInitialCall) {
+//        Log.i(TAG, " showPage for " + pageUrl + " notInitialCall = " + notInitialCall);
 
         MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
 
         // Cancel any existing http request to openHAB (typically ongoing long poll)
-//        if (!notInitialRequest)
+//        if (!notInitialCall)
 //            startProgressIndicator();
         List<BasicHeader> headers = new LinkedList<BasicHeader>();
         headers.add(new BasicHeader("Accept", "application/xml"));
         headers.add(new BasicHeader("X-Atmosphere-Framework", "1.0"));
-        if (notInitialRequest) {
+        if (notInitialCall) {
             // Initiate long-polling
             mAsyncHttpClient.setTimeout(300000);
             headers.add(new BasicHeader("X-Atmosphere-Transport", "long-polling"));
@@ -111,7 +142,7 @@ public class Communicator {
             mAsyncHttpClient.setTimeout(10000);
             headers.add(new BasicHeader("X-Atmosphere-tracking-id", "0"));
         }
-        Log.i(TAG, "Issue page load request " + (notInitialRequest ? "(long-polling) " : "") + "to " + sitemapPageUrl + " with tracking id: " + mAtmosphereTrackingId);
+        Log.i(TAG, "Issue page load request " + (notInitialCall ? "(long-polling) " : "") + "to " + sitemapPageUrl + " with tracking id: " + mAtmosphereTrackingId);
         mAsyncHttpClient.get(context, sitemapPageUrl, headers.toArray(new BasicHeader[]{}), null, new DocumentHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, Document document) {
@@ -127,9 +158,9 @@ public class Communicator {
                 if (document != null) {
                     Log.d(TAG, "Processing response...");
 //                    Log.d(TAG, "Response: " + document.toString());
-//                    if (!notInitialRequest)
+//                    if (!notInitialCall)
 //                        stopProgressIndicator();
-                    processResponse(document /*, notInitialRequest */);
+                    processPageResponse(document /*, notInitialCall */);
                 } else {
                     Log.e(TAG, "Got a empty (<null>) response.");
                     loadPage(/* displayPageUrl, */ true);
@@ -139,10 +170,10 @@ public class Communicator {
             @Override
             public void onFailure(Throwable error, String content) {
                 mAtmosphereTrackingId = null;
-//                if (!notInitialRequest)
+//                if (!notInitialCall)
 //                    stopProgressIndicator();
-                if (error instanceof AsyncHttpAbortException) {
-                    Log.d(TAG, "Request for " + sitemapPageUrl + " was aborted! Cycle aborted!");
+                if (error instanceof AsyncHttpAbortException) { // Occurs when asyncHttpClient.cancelRequests(...) is called
+                    Log.d(TAG, "Request was aborted! Cycle aborted!");
                     return;
                 }
                 if (error instanceof SocketTimeoutException) {
@@ -175,7 +206,7 @@ public class Communicator {
      * @param document XML Document
      * @return void
      */
-    private void processResponse(Document document /* , boolean notInitialRequest */) {
+    private void processPageResponse(Document document /* , boolean notInitialRequest */) {
         // As we change the page we need to stop all videos on current page
         // before going to the new page. This is quite dirty, but is the only
         // way to do that...
@@ -253,6 +284,17 @@ public class Communicator {
     }
 
     public void sendCommand(OpenHABItem item, String command) {
+        sendCommand(item, command, null);
+    }
+
+    /**
+     * Sends the given command to the specified item.
+     * @param item the item to which the command should be sent.
+     * @param command the command to be sent.
+     * @param result an optional delegate to be called after the command has been sent propagating the result of the operation.
+     *               The sending of the command happens asynchronously, but the result delegate will be executed on the same thread as the operation was called.
+     */
+    public void sendCommand(OpenHABItem item, String command, final SendCommandResult result) {
         if (item == null) {
             throw new NullPointerException("item must not be undefined!");
         }
@@ -269,27 +311,21 @@ public class Communicator {
             throw new RuntimeException("Cannot convert command string to entity!", e);
         }
 
-        MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
-        mAsyncHttpClient.post(context, item.getLink(), commandEntity, "text/plain", new AsyncHttpResponseHandler() {
+//        MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
+        /* mAsyncHttpClient */ commandsHttpClient.post(context, item.getLink(), commandEntity, "text/plain", new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(String response) {
                 Log.d(TAG, "Command sent successfully.");
+
+                result.success();
             }
             @Override
             public void onFailure(Throwable error, String content) {
                 Log.e(TAG, "Error: " + error.getClass() + "/ " + content + "!");
+
+                result.failure();
             }
         });
-    }
-
-    private MyAsyncHttpClient createHttpClient() {
-        MyAsyncHttpClient httpClient = new MyAsyncHttpClient(context);
-
-//        mAsyncHttpClient.setBasicAuth(openHABUsername, openHABPassword);
-//        httpClient.addHeader("Accept", "application/xml");
-//        httpClient.setTimeout(10000);
-
-        return httpClient;
     }
 
     public static interface UpdateHandler {

@@ -1,6 +1,7 @@
 package org.openhab.habdroid.ui.topview;
 
 import android.app.Activity;
+import android.util.Log;
 import android.view.ViewParent;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
@@ -16,6 +17,7 @@ import org.openhab.habdroid.model.topview.TopViewSVGToButtonParser;
 import org.openhab.habdroid.model.topview.common.Communicator;
 import org.openhab.habdroid.model.topview.common.StreamUtil;
 import org.openhab.habdroid.model.topview.common.StringUtil;
+import org.openhab.habdroid.model.topview.common.types.SendCommandResult;
 import org.openhab.habdroid.ui.OpenHABMainActivity;
 import org.openhab.habdroid.util.MyAsyncHttpClient;
 
@@ -24,6 +26,8 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,10 +35,14 @@ import java.util.regex.Pattern;
  * Created by staufferr on 12.10.2014.
  */
 public class TopViewManager {
+    private static final String TAG = TopViewManager.class.getName();
+
     private final Activity activity;
 
     // Per top view
     private RelativeLayout layout;
+
+    private Timer checkOnlineStatusTimer;
     // Per top view END
 
     private final Communicator communicator;
@@ -121,7 +129,7 @@ public class TopViewManager {
 
             @Override
             public void onFailure(Throwable throwable, String responseBody) {
-
+                Log.d(TAG, "Cannot load top view!");
             }
         }, this);
 //            try {
@@ -134,12 +142,40 @@ public class TopViewManager {
 //            }
     }
 
-    public void destroy(/* TODO TopViewDescriptor */) {
-        if (layout != null) {
-            layout.removeAllViews();
+    public void pause(/* TODO TopViewDescriptor */) {
+        if (layout == null) {
+            throw new IllegalStateException("View hasn't been created yet!");
+        }
 
+        if (communicator.isRunning()) {
+            communicator.pause();
+        }
+    }
+
+    public void resume(/* TODO TopViewDescriptor */) {
+        if (layout == null) {
+            throw new IllegalStateException("View hasn't been created yet!");
+        }
+
+        if (communicator.isRunning()) {
+            communicator.restart();
+        }
+    }
+
+    public void destroy(/* TODO TopViewDescriptor */) {
+        if (layout == null) {
+            throw new IllegalStateException("View hasn't been created yet!");
+        }
+
+        checkOnlineStatusTimer.cancel();
+
+        layout.removeAllViews();
+
+        if (communicator.isRunning()) {
             communicator.stop();
         }
+
+        layout = null;
     }
 
     private void createView(/* Source: */ final InputStream svgStream, /* Target */ final RelativeLayout layout, final Map<String, TopViewButtonToItemAdapter> buttonToItemAdapters) {
@@ -162,15 +198,29 @@ public class TopViewManager {
                 /* Button button */
             TopViewButtonToItemAdapter buttonToItemAdapter = buttonFactory.create(buttonDescriptor, new TopViewButtonToItemAdapter.SendCommandHandler() {
                 @Override
-                public void sendCommand(OpenHABItem item, String command) {
+                public void sendCommand(OpenHABItem item, String command, SendCommandResult result) {
                     // Called from the UI thread
 
-                    communicator.sendCommand(item, command);
+                    communicator.sendCommand(item, command, result);
                 }
             });
             buttonToItemAdapters.put(buttonToItemAdapter.getButtonDescriptor().getItem(), buttonToItemAdapter);
             layout.addView(/* button */ buttonToItemAdapter.getButton());
         }
+
+        // Schedule online status check timer
+        Log.d(TAG, "Starting online status check...");
+        checkOnlineStatusTimer = new Timer();
+        checkOnlineStatusTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                Log.d(TAG, "Checking online status...");
+
+                for (TopViewButtonToItemAdapter buttonToItemAdapter : buttonToItemAdapters.values()) {
+                    buttonToItemAdapter.checkOnlineStatus();
+                }
+            }
+        }, 10 * 1000, 10 * 1000);
     }
 
     private void loadModel(final String modelSitemapUrl, final Map<String, TopViewButtonToItemAdapter> buttonToItemAdapters) {
