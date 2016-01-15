@@ -619,8 +619,8 @@ public class OpenHABMainActivity extends FragmentActivity implements OnWidgetSel
         if (hasTopViewCreated) {
             topViewManager.destroy();
         }
-        topViewManager.createForSitemap(sitemapUrl, topViewLayout);
-        hasTopViewCreated = true;
+//        topViewManager.createForSitemap(sitemapUrl, topViewLayout);
+//        hasTopViewCreated = true;
     }
 
     @Override

@@ -20,6 +20,7 @@ import org.openhab.habdroid.ui.OpenHABMainActivity;
 import org.openhab.habdroid.util.MyAsyncHttpClient;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
+import org.xml.sax.SAXParseException;
 
 import java.io.UnsupportedEncodingException;
 import java.net.SocketTimeoutException;
@@ -49,6 +50,7 @@ public class Communicator {
     private Runnable networkRunnable;
     // Per thread state END
 
+    private final MyAsyncHttpClient stateUpdatesHttpClient;
     private final MyAsyncHttpClient commandsHttpClient;
 
     public Communicator(Context context) {
@@ -61,6 +63,7 @@ public class Communicator {
         preferences = new Preferences(context);
 
         HttpClientFactory httpClientFactory = new HttpClientFactory(context, preferences);
+        stateUpdatesHttpClient = httpClientFactory.create();
         commandsHttpClient = httpClientFactory.create();
     }
 
@@ -104,8 +107,8 @@ public class Communicator {
             throw new IllegalStateException("Communicator hasn't been started yet!");
         }
 
-        MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
-        mAsyncHttpClient.cancelRequests(context, this, /* mayInterruptIfRunning: */ true);
+//        MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
+        /* mAsyncHttpClient */ stateUpdatesHttpClient.cancelRequests(context, this, /* mayInterruptIfRunning: */ true);
     }
 
     public void stop(/* TODO ThreadDescriptor */) {
@@ -121,7 +124,7 @@ public class Communicator {
     private void loadPage(/* String pageUrl, */ /* TODO final boolean continuous */ final boolean notInitialCall) {
 //        Log.i(TAG, " showPage for " + pageUrl + " notInitialCall = " + notInitialCall);
 
-        MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
+//        MyAsyncHttpClient mAsyncHttpClient = OpenHABMainActivity.getAsyncHttpClient();
 
         // Cancel any existing http request to openHAB (typically ongoing long poll)
 //        if (!notInitialCall)
@@ -131,7 +134,7 @@ public class Communicator {
         headers.add(new BasicHeader("X-Atmosphere-Framework", "1.0"));
         if (notInitialCall) {
             // Initiate long-polling
-            mAsyncHttpClient.setTimeout(300000);
+            /* mAsyncHttpClient */ stateUpdatesHttpClient.setTimeout(300000);
             headers.add(new BasicHeader("X-Atmosphere-Transport", "long-polling"));
             if (mAtmosphereTrackingId == null) {
                 headers.add(new BasicHeader("X-Atmosphere-tracking-id", "0"));
@@ -139,11 +142,11 @@ public class Communicator {
                 headers.add(new BasicHeader("X-Atmosphere-tracking-id", mAtmosphereTrackingId));
             }
         } else {
-            mAsyncHttpClient.setTimeout(10000);
+            /* mAsyncHttpClient */ stateUpdatesHttpClient.setTimeout(10000);
             headers.add(new BasicHeader("X-Atmosphere-tracking-id", "0"));
         }
         Log.i(TAG, "Issue page load request " + (notInitialCall ? "(long-polling) " : "") + "to " + sitemapPageUrl + " with tracking id: " + mAtmosphereTrackingId);
-        mAsyncHttpClient.get(context, sitemapPageUrl, headers.toArray(new BasicHeader[]{}), null, new DocumentHttpResponseHandler() {
+        /* mAsyncHttpClient */ stateUpdatesHttpClient.get(context, sitemapPageUrl, headers.toArray(new BasicHeader[]{}), null, new DocumentHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, Document document) {
 //                long threadId = Thread.currentThread().getId();
@@ -157,10 +160,16 @@ public class Communicator {
                 }
                 if (document != null) {
                     Log.d(TAG, "Processing response...");
-//                    Log.d(TAG, "Response: " + document.toString());
+                    Log.d(TAG, "Response: " + document.toString());
 //                    if (!notInitialCall)
 //                        stopProgressIndicator();
-                    processPageResponse(document /*, notInitialCall */);
+                    try {
+                        processPageResponse(document /*, notInitialCall */);
+
+                        Log.d(TAG, "Processing successful.");
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error during processing: " + e.getClass());
+                    }
                 } else {
                     Log.e(TAG, "Got a empty (<null>) response.");
                     loadPage(/* displayPageUrl, */ true);
@@ -186,6 +195,14 @@ public class Communicator {
                     * fragment is paused, the runnable will be removed
                     */
                     Log.e(TAG, "Error: " + error.getClass() + "! Cycle aborted! Restarting...");
+
+                    if (error instanceof SAXParseException) {
+                        SAXParseException saxParseException = (SAXParseException) error;
+                        Log.e(TAG, "SAXParseException:");
+                        Log.e(TAG, "Cause: " + saxParseException.getCause());
+                        Log.e(TAG, "Line Number: " + saxParseException.getLineNumber());
+                        Log.e(TAG, "Column Number: " + saxParseException.getColumnNumber());
+                    }
 
                     networkHandler.removeCallbacks(networkRunnable);
                     networkRunnable = new Runnable() {
@@ -319,6 +336,7 @@ public class Communicator {
 
                 result.success();
             }
+
             @Override
             public void onFailure(Throwable error, String content) {
                 Log.e(TAG, "Error: " + error.getClass() + "/ " + content + "!");
