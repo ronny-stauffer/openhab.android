@@ -7,3 +7,9 @@
 +wear/build
 +local.properties
 +.gradle
+/.gradle
+/.idea
+/build
+/mobile/build
+/wear/build
+/local.properties
